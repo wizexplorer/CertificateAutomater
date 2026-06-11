@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+
+    <AssemblyName>CertificateAutomater</AssemblyName>
+    <RootNamespace>CertificateAutomater</RootNamespace>
+
+    <Product>CertificateAutomater</Product>
+    <Company>Goldkey</Company>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NPOI" Version="2.8.0" />
+  </ItemGroup>
+
+</Project>

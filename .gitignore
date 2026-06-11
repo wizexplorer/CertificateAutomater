@@ -1,0 +1,27 @@
+# Build output
+bin/
+obj/
+publish/
+installer-output/
+
+# Visual Studio / VS Code / user-specific files
+.vs/
+*.user
+*.suo
+*.rsuser
+
+# Logs
+*.log
+
+# Generated app outputs
+PDF/
+PDF-CERT/
+
+# Excel/PDF test files - avoid accidentally uploading client/sample files
+*.xls
+*.xlsx
+*.pdf
+
+# OS junk
+.DS_Store
+Thumbs.db
