@@ -1,5 +1,5 @@
 #define MyAppName "CertificateAutomater"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "wizex"
 #define MyAppExeName "CertificateAutomater.exe"
 
@@ -17,7 +17,7 @@ DisableProgramGroupPage=auto
 OutputDir=installer-output
 OutputBaseFilename=CertificateAutomaterSetup
 Compression=lzma
-SolidCompression=yes
+SolidCompression=yes  
 WizardStyle=modern
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
