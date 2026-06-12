@@ -43,68 +43,84 @@ public static class CertificateAutomation
         }
 
         string? pdfOutputDirectory = null;
+        ExcelPdfExporter? pdfExporter = null;
 
-        if (convertToPdf)
+        try
         {
-            pdfOutputDirectory = PreparePdfOutputDirectory(templatePath);
-            log($"PDF output folder: {pdfOutputDirectory}");
-        }
-        else
-        {
-            log("PDF generation is disabled.");
-        }
-
-        string[] certificateFiles = Directory
-            .GetFiles(certificateDirectory)
-            .Where(IsValidCertificateFileToProcess)
-            .ToArray();
-
-        if (certificateFiles.Length == 0)
-        {
-            log("No valid certificate files were found.");
-            return;
-        }
-
-        log("");
-        log($"Found {certificateFiles.Length} certificate file(s) to process.");
-        log("");
-
-        int successCount = 0;
-        int failureCount = 0;
-
-        foreach (string certificatePath in certificateFiles)
-        {
-            log("--------------------------------------------------");
-            log($"Processing: {Path.GetFileName(certificatePath)}");
-
-            try
+            if (convertToPdf)
             {
-                ProcessCertificateFile(
-                    templatePath,
-                    certificatePath,
-                    pdfOutputDirectory,
-                    convertToPdf,
-                    log
-                );
+                pdfOutputDirectory = PreparePdfOutputDirectory(templatePath);
+                pdfExporter = new ExcelPdfExporter();
 
-                successCount++;
-                log("Status: SUCCESS");
+                log($"PDF output folder: {pdfOutputDirectory}");
+                log("Excel PDF exporter started.");
             }
-            catch (Exception ex)
+            else
             {
-                failureCount++;
-                log("Status: FAILED");
-                log($"Reason: {ex.Message}");
+                log("PDF generation is disabled.");
+            }
+
+            string[] certificateFiles = Directory
+                .GetFiles(certificateDirectory)
+                .Where(IsValidCertificateFileToProcess)
+                .ToArray();
+
+            if (certificateFiles.Length == 0)
+            {
+                log("No valid certificate files were found.");
+                return;
             }
 
             log("");
-        }
+            log($"Found {certificateFiles.Length} certificate file(s) to process.");
+            log("");
 
-        log("==================================================");
-        log("Batch complete.");
-        log($"Successful: {successCount}");
-        log($"Failed: {failureCount}");
-        log("==================================================");
+            int successCount = 0;
+            int failureCount = 0;
+
+            foreach (string certificatePath in certificateFiles)
+            {
+                log("--------------------------------------------------");
+                log($"Processing: {Path.GetFileName(certificatePath)}");
+
+                try
+                {
+                    ProcessCertificateFile(
+                        templatePath,
+                        certificatePath,
+                        pdfOutputDirectory,
+                        convertToPdf,
+                        pdfExporter,
+                        log
+                    );
+
+                    successCount++;
+                    log("Status: SUCCESS");
+                }
+                catch (Exception ex)
+                {
+                    failureCount++;
+                    log("Status: FAILED");
+                    log($"Reason: {ex.Message}");
+                }
+
+                log("");
+            }
+
+            log("==================================================");
+            log("Batch complete.");
+            log($"Successful: {successCount}");
+            log($"Failed: {failureCount}");
+            log("==================================================");
+        }
+        finally
+        {
+            if (pdfExporter != null)
+            {
+                pdfExporter.Dispose();
+                log("Excel PDF exporter closed.");
+            }
+        }
     }
 
     // =========================================================
@@ -116,6 +132,7 @@ public static class CertificateAutomation
         string certificatePath,
         string? pdfOutputDirectory,
         bool convertToPdf,
+        ExcelPdfExporter? pdfExporter,
         Action<string> log
     )
     {
@@ -221,10 +238,15 @@ public static class CertificateAutomation
                 throw new Exception("PDF output directory was not prepared.");
             }
 
+            if (pdfExporter == null)
+            {
+                throw new Exception("PDF exporter was not started.");
+            }
+
             string pdfFileName = Path.GetFileNameWithoutExtension(outputPath) + ".pdf";
             string pdfPath = Path.Combine(pdfOutputDirectory, pdfFileName);
 
-            ExportExcelToPdf(outputPath, pdfPath);
+            pdfExporter.Export(outputPath, pdfPath);
 
             log($"Saved PDF file: {pdfPath}");
         }
@@ -266,80 +288,80 @@ public static class CertificateAutomation
     // PDF export helper
     // =========================================================
 
-    private static void ExportExcelToPdf(string excelPath, string pdfPath)
-    {
-        object? excelApp = null;
-        object? workbooks = null;
-        object? workbook = null;
+    // private static void ExportExcelToPdf(string excelPath, string pdfPath)
+    // {
+    //     object? excelApp = null;
+    //     object? workbooks = null;
+    //     object? workbook = null;
 
-        try
-        {
-            if (File.Exists(pdfPath))
-            {
-                File.Delete(pdfPath);
-            }
+    //     try
+    //     {
+    //         if (File.Exists(pdfPath))
+    //         {
+    //             File.Delete(pdfPath);
+    //         }
 
-            Type? excelType = Type.GetTypeFromProgID("Excel.Application");
+    //         Type? excelType = Type.GetTypeFromProgID("Excel.Application");
 
-            if (excelType == null)
-            {
-                throw new Exception("Microsoft Excel COM automation is not available. Excel may not be installed or registered correctly.");
-            }
+    //         if (excelType == null)
+    //         {
+    //             throw new Exception("Microsoft Excel COM automation is not available. Excel may not be installed or registered correctly.");
+    //         }
 
-            excelApp = Activator.CreateInstance(excelType);
+    //         excelApp = Activator.CreateInstance(excelType);
 
-            if (excelApp == null)
-            {
-                throw new Exception("Could not create an Excel application instance.");
-            }
+    //         if (excelApp == null)
+    //         {
+    //             throw new Exception("Could not create an Excel application instance.");
+    //         }
 
-            dynamic excel = excelApp;
+    //         dynamic excel = excelApp;
 
-            excel.Visible = false;
-            excel.DisplayAlerts = false;
+    //         excel.Visible = false;
+    //         excel.DisplayAlerts = false;
 
-            workbooks = excel.Workbooks;
-            dynamic dynamicWorkbooks = workbooks;
+    //         workbooks = excel.Workbooks;
+    //         dynamic dynamicWorkbooks = workbooks;
 
-            workbook = dynamicWorkbooks.Open(excelPath, ReadOnly: true);
-            dynamic dynamicWorkbook = workbook;
+    //         workbook = dynamicWorkbooks.Open(excelPath, ReadOnly: true);
+    //         dynamic dynamicWorkbook = workbook;
 
-            // 0 = PDF
-            dynamicWorkbook.ExportAsFixedFormat(
-                0,
-                pdfPath
-            );
+    //         // 0 = PDF
+    //         dynamicWorkbook.ExportAsFixedFormat(
+    //             0,
+    //             pdfPath
+    //         );
 
-            dynamicWorkbook.Close(false);
-            excel.Quit();
-        }
-        finally
-        {
-            if (workbook != null)
-            {
-                Marshal.ReleaseComObject(workbook);
-            }
+    //         dynamicWorkbook.Close(false);
+    //         excel.Quit();
+    //     }
+    //     finally
+    //     {
+    //         if (workbook != null)
+    //         {
+    //             Marshal.ReleaseComObject(workbook);
+    //         }
 
-            if (workbooks != null)
-            {
-                Marshal.ReleaseComObject(workbooks);
-            }
+    //         if (workbooks != null)
+    //         {
+    //             Marshal.ReleaseComObject(workbooks);
+    //         }
 
-            if (excelApp != null)
-            {
-                Marshal.ReleaseComObject(excelApp);
-            }
+    //         if (excelApp != null)
+    //         {
+    //             Marshal.ReleaseComObject(excelApp);
+    //         }
 
-            workbook = null;
-            workbooks = null;
-            excelApp = null;
+    //         workbook = null;
+    //         workbooks = null;
+    //         excelApp = null;
 
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-        }
-    }
+    //         GC.Collect();
+    //         GC.WaitForPendingFinalizers();
+    //         GC.Collect();
+    //         GC.WaitForPendingFinalizers();
+    //     }
+    // }
 
     // =========================================================
     // File filtering helpers
@@ -532,6 +554,132 @@ public static class CertificateAutomation
         IFont font = workbook.GetFontAt(cellStyle.FontIndex);
 
         return font.IsBold;
+    }
+
+    // =========================================================
+    // Reusable Excel PDF exporter
+    // =========================================================
+
+    private sealed class ExcelPdfExporter : IDisposable
+    {
+        private object? excelApp;
+        private object? workbooks;
+        private bool disposed;
+
+        public ExcelPdfExporter()
+        {
+            Type? excelType = Type.GetTypeFromProgID("Excel.Application");
+
+            if (excelType == null)
+            {
+                throw new Exception("Microsoft Excel COM automation is not available. Excel may not be installed or registered correctly.");
+            }
+
+            excelApp = Activator.CreateInstance(excelType);
+
+            if (excelApp == null)
+            {
+                throw new Exception("Could not create an Excel application instance.");
+            }
+
+            dynamic excel = excelApp;
+
+            excel.Visible = false;
+            excel.DisplayAlerts = false;
+
+            workbooks = excel.Workbooks;
+        }
+
+        public void Export(string excelPath, string pdfPath)
+        {
+            if (disposed)
+            {
+                throw new ObjectDisposedException(nameof(ExcelPdfExporter));
+            }
+
+            if (excelApp == null || workbooks == null)
+            {
+                throw new Exception("Excel PDF exporter is not initialized.");
+            }
+
+            object? workbook = null;
+
+            try
+            {
+                if (File.Exists(pdfPath))
+                {
+                    File.Delete(pdfPath);
+                }
+
+                dynamic dynamicWorkbooks = workbooks;
+
+                workbook = dynamicWorkbooks.Open(excelPath, ReadOnly: true);
+                dynamic dynamicWorkbook = workbook;
+
+                // 0 = PDF
+                dynamicWorkbook.ExportAsFixedFormat(
+                    0,
+                    pdfPath
+                );
+
+                dynamicWorkbook.Close(false);
+            }
+            finally
+            {
+                if (workbook != null)
+                {
+                    Marshal.ReleaseComObject(workbook);
+                }
+
+                workbook = null;
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+        }
+
+        public void Dispose()
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            disposed = true;
+
+            try
+            {
+                if (excelApp != null)
+                {
+                    dynamic excel = excelApp;
+                    excel.Quit();
+                }
+            }
+            catch
+            {
+                // Ignore shutdown errors.
+            }
+            finally
+            {
+                if (workbooks != null)
+                {
+                    Marshal.ReleaseComObject(workbooks);
+                }
+
+                if (excelApp != null)
+                {
+                    Marshal.ReleaseComObject(excelApp);
+                }
+
+                workbooks = null;
+                excelApp = null;
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+        }
     }
 
     // =========================================================

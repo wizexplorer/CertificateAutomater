@@ -9,7 +9,6 @@
     <RootNamespace>CertificateAutomater</RootNamespace>
 
     <Product>CertificateAutomater</Product>
-    <Company>Goldkey</Company>
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
@@ -19,7 +18,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NPOI" Version="2.8.0" />
+    <PackageReference Include="NPOI" Version="2.7.6" />
   </ItemGroup>
 
 </Project>
