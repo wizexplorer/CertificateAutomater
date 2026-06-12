@@ -13,6 +13,8 @@ public class MainForm : Form
     private readonly TextBox certificateDirectoryTextBox;
     private readonly Button certificateDirectoryBrowseButton;
 
+    private readonly CheckBox convertToPdfCheckBox;
+
     private readonly Button generateButton;
     private readonly TextBox statusTextBox;
 
@@ -47,19 +49,20 @@ public class MainForm : Form
         {
             AutoSize = true,
             ColumnCount = 3,
-            RowCount = 5,
+            RowCount = 6,
             Anchor = AnchorStyles.None
         };
 
-        inputPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
-        inputPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 430));
+        inputPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220));
+        inputPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 440));
         inputPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
 
-        inputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
-        inputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
-        inputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
-        inputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
-        inputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 10));
+        inputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 45)); // template picker
+        inputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 45)); // directory picker
+        inputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 15)); // spacing
+        inputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 35)); // PDF checkbox
+        inputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 60)); // generate button
+        inputPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 10)); // bottom spacing
 
         topOuterPanel.Controls.Add(inputPanel);
 
@@ -127,6 +130,18 @@ public class MainForm : Form
         inputPanel.Controls.Add(certificateDirectoryTextBox, 1, 1);
         inputPanel.Controls.Add(certificateDirectoryBrowseButton, 2, 1);
 
+        convertToPdfCheckBox = new CheckBox
+        {
+            Text = "Convert to PDF as well?",
+            AutoSize = true,
+            Checked = true,
+            Anchor = AnchorStyles.Left,
+            Font = new Font(Font.FontFamily, 10, FontStyle.Regular),
+            Margin = new Padding(10, 5, 10, 5)
+        };
+
+        inputPanel.Controls.Add(convertToPdfCheckBox, 1, 3);
+
         generateButton = new Button
         {
             Text = "Generate Certificates",
@@ -138,7 +153,7 @@ public class MainForm : Form
 
         generateButton.Click += GenerateButton_Click;
 
-        inputPanel.Controls.Add(generateButton, 1, 3);
+        inputPanel.Controls.Add(generateButton, 1, 4);
 
         statusTextBox = new TextBox
         {
@@ -188,6 +203,7 @@ public class MainForm : Form
     {
         string templatePath = templatePathTextBox.Text;
         string certificateDirectory = certificateDirectoryTextBox.Text;
+        bool convertToPdf = convertToPdfCheckBox.Checked;
 
         if (string.IsNullOrWhiteSpace(templatePath))
         {
@@ -204,12 +220,14 @@ public class MainForm : Form
         generateButton.Enabled = false;
         templateBrowseButton.Enabled = false;
         certificateDirectoryBrowseButton.Enabled = false;
+        convertToPdfCheckBox.Enabled = false;
 
         statusTextBox.Clear();
 
         Log("Starting certificate generation...");
         Log($"Template: {templatePath}");
         Log($"Certificate directory: {certificateDirectory}");
+        Log($"Convert to PDF: {(convertToPdf ? "Yes" : "No")}");
         Log("");
 
         try
@@ -219,6 +237,7 @@ public class MainForm : Form
                 CertificateAutomation.Run(
                     templatePath,
                     certificateDirectory,
+                    convertToPdf,
                     Log
                 );
             });
@@ -245,6 +264,7 @@ public class MainForm : Form
             generateButton.Enabled = true;
             templateBrowseButton.Enabled = true;
             certificateDirectoryBrowseButton.Enabled = true;
+            convertToPdfCheckBox.Enabled = true;
         }
     }
 

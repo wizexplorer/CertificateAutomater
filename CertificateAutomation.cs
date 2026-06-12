@@ -13,6 +13,7 @@ public static class CertificateAutomation
     public static void Run(
         string templatePath,
         string certificateDirectory,
+        bool convertToPdf,
         Action<string> log
     )
     {
@@ -41,9 +42,17 @@ public static class CertificateAutomation
             throw new Exception("The certificate folder does not exist.");
         }
 
-        string pdfOutputDirectory = PreparePdfOutputDirectory(templatePath);
+        string? pdfOutputDirectory = null;
 
-        log($"PDF output folder: {pdfOutputDirectory}");
+        if (convertToPdf)
+        {
+            pdfOutputDirectory = PreparePdfOutputDirectory(templatePath);
+            log($"PDF output folder: {pdfOutputDirectory}");
+        }
+        else
+        {
+            log("PDF generation is disabled.");
+        }
 
         string[] certificateFiles = Directory
             .GetFiles(certificateDirectory)
@@ -74,6 +83,7 @@ public static class CertificateAutomation
                     templatePath,
                     certificatePath,
                     pdfOutputDirectory,
+                    convertToPdf,
                     log
                 );
 
@@ -104,7 +114,8 @@ public static class CertificateAutomation
     private static void ProcessCertificateFile(
         string templatePath,
         string certificatePath,
-        string pdfOutputDirectory,
+        string? pdfOutputDirectory,
+        bool convertToPdf,
         Action<string> log
     )
     {
@@ -203,12 +214,24 @@ public static class CertificateAutomation
 
         log($"Saved output Excel file: {outputPath}");
 
-        string pdfFileName = Path.GetFileNameWithoutExtension(outputPath) + ".pdf";
-        string pdfPath = Path.Combine(pdfOutputDirectory, pdfFileName);
+        if (convertToPdf)
+        {
+            if (string.IsNullOrWhiteSpace(pdfOutputDirectory))
+            {
+                throw new Exception("PDF output directory was not prepared.");
+            }
 
-        ExportExcelToPdf(outputPath, pdfPath);
+            string pdfFileName = Path.GetFileNameWithoutExtension(outputPath) + ".pdf";
+            string pdfPath = Path.Combine(pdfOutputDirectory, pdfFileName);
 
-        log($"Saved PDF file: {pdfPath}");
+            ExportExcelToPdf(outputPath, pdfPath);
+
+            log($"Saved PDF file: {pdfPath}");
+        }
+        else
+        {
+            log("Skipped PDF generation.");
+        }
     }
 
     // =========================================================
