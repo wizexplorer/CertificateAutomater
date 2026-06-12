@@ -2,11 +2,15 @@ using System;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Runtime.InteropServices;
 
 namespace CertificateAutomater;
 
 public class MainForm : Form
 {
+    private bool hasCheckedForUpdates;
+    private readonly bool startedFromUpdater;
+
     private readonly TextBox templatePathTextBox;
     private readonly Button templateBrowseButton;
 
@@ -18,8 +22,39 @@ public class MainForm : Form
     private readonly Button generateButton;
     private readonly TextBox statusTextBox;
 
-    public MainForm()
+    // ==== Window Focus ====
+    private const int SW_RESTORE = 9;
+
+    private static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+    private static readonly IntPtr HWND_NOTOPMOST = new IntPtr(-2);
+
+    private const uint SWP_NOMOVE = 0x0002;
+    private const uint SWP_NOSIZE = 0x0001;
+    private const uint SWP_SHOWWINDOW = 0x0040;
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool BringWindowToTop(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowPos(
+        IntPtr hWnd,
+        IntPtr hWndInsertAfter,
+        int X,
+        int Y,
+        int cx,
+        int cy,
+        uint uFlags
+    );
+    public MainForm(string[] args)
     {
+        startedFromUpdater = args.Contains("--from-updater");
+        
         Text = "Certificate Automator";
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(800, 600);
@@ -167,6 +202,83 @@ public class MainForm : Form
         };
 
         mainLayout.Controls.Add(statusTextBox, 0, 1);
+
+        Shown += MainForm_Shown;
+        Shown += MainForm_BringToFrontIfStartedFromUpdater;
+    }
+
+    private async void MainForm_Shown(object? sender, EventArgs e)
+    {
+        if (hasCheckedForUpdates)
+        {
+            return;
+        }
+
+        hasCheckedForUpdates = true;
+
+        await CheckForUpdatesOnStartupAsync();
+    }
+
+    private async void MainForm_BringToFrontIfStartedFromUpdater(object? sender, EventArgs e)
+    {
+        if (!startedFromUpdater)
+        {
+            return;
+        }
+
+        // First attempt shortly after the form is shown.
+        await Task.Delay(500);
+        ForceBringWindowToFront();
+
+        // Second attempt after Windows has fully settled the new process/window.
+        await Task.Delay(1000);
+        ForceBringWindowToFront();
+    }
+
+    private void ForceBringWindowToFront()
+    {
+        if (IsDisposed)
+        {
+            return;
+        }
+
+        if (WindowState == FormWindowState.Minimized)
+        {
+            WindowState = FormWindowState.Normal;
+        }
+
+        Show();
+
+        IntPtr handle = Handle;
+
+        ShowWindow(handle, SW_RESTORE);
+        BringWindowToTop(handle);
+
+        // Temporarily make it topmost, then remove topmost.
+        SetWindowPos(
+            handle,
+            HWND_TOPMOST,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW
+        );
+
+        SetForegroundWindow(handle);
+
+        SetWindowPos(
+            handle,
+            HWND_NOTOPMOST,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW
+        );
+
+        Activate();
+        Focus();
     }
 
     private void TemplateBrowseButton_Click(object? sender, EventArgs e)
@@ -277,5 +389,121 @@ public class MainForm : Form
         }
 
         statusTextBox.AppendText(message + Environment.NewLine);
+    }
+
+    private async Task CheckForUpdatesOnStartupAsync()
+    {
+        try
+        {
+            Log("Checking for updates...");
+
+            UpdateInfo? updateInfo = await UpdateChecker.CheckForUpdateAsync();
+
+            if (updateInfo == null)
+            {
+                Log("You are using the latest version.");
+                Log("");
+                return;
+            }
+
+            string releaseNotes = string.IsNullOrWhiteSpace(updateInfo.ReleaseNotes)
+                ? "No release notes provided."
+                : updateInfo.ReleaseNotes;
+
+            string message =
+                $"A new version of CertificateAutomater is available.\n\n" +
+                $"Current version: {UpdateChecker.GetCurrentVersion()}\n" +
+                $"Latest version: {updateInfo.LatestVersion}\n\n" +
+                $"Release notes:\n\n" +
+                $"{releaseNotes}\n\n" +
+                $"Do you want to download and install this update now?";
+
+            DialogResult result = MessageBox.Show(
+                message,
+                "Update Available",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Information
+            );
+
+            if (result != DialogResult.Yes)
+            {
+                Log("Update skipped by user.");
+                Log("");
+                return;
+            }
+
+            Log($"Downloading update: {updateInfo.InstallerFileName}");
+
+            using Form progressForm = CreateUpdateProgressForm(out ProgressBar progressBar);
+
+            Progress<int> progress = new Progress<int>(percentage =>
+            {
+                progressBar.Value = Math.Clamp(percentage, 0, 100);
+            });
+
+            Task<string> downloadTask = UpdateChecker.DownloadInstallerAsync(
+                updateInfo,
+                progress
+            );
+
+            progressForm.Show(this);
+
+            string installerPath = await downloadTask;
+
+            progressForm.Close();
+
+            Log($"Update downloaded: {installerPath}");
+            Log("Launching installer and closing app...");
+
+            MessageBox.Show(
+                "The installer will now open. CertificateAutomater will close so the update can be installed.",
+                "Ready to Update",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information
+            );
+
+            UpdateChecker.LaunchInstallerAndExit(installerPath);
+        }
+        catch (Exception ex)
+        {
+            Log($"Update check failed: {ex.Message}");
+            Log("");
+
+            // Do not block the user from using the app if update check fails.
+        }
+    }
+
+    private static Form CreateUpdateProgressForm(out ProgressBar progressBar)
+    {
+        Form form = new Form
+        {
+            Text = "Downloading Update",
+            Size = new Size(420, 130),
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MaximizeBox = false,
+            MinimizeBox = false
+        };
+
+        Label label = new Label
+        {
+            Text = "Downloading update...",
+            AutoSize = true,
+            Location = new Point(20, 20)
+        };
+
+        progressBar = new ProgressBar
+        {
+            Location = new Point(20, 50),
+            Size = new Size(360, 25),
+            Minimum = 0,
+            Maximum = 100,
+            Value = 0
+        };
+
+        form.Controls.Add(label);
+        form.Controls.Add(progressBar);
+
+        return form;
     }
 }

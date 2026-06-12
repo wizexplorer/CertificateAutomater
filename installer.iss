@@ -1,6 +1,6 @@
 #define MyAppName "CertificateAutomater"
 #define MyAppVersion "1.0.0"
-#define MyAppPublisher "Goldkey"
+#define MyAppPublisher "wizex"
 #define MyAppExeName "CertificateAutomater.exe"
 
 [Setup]
@@ -10,6 +10,10 @@ AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
+UsePreviousAppDir=yes
+UsePreviousGroup=yes
+DisableDirPage=auto
+DisableProgramGroupPage=auto
 OutputDir=installer-output
 OutputBaseFilename=CertificateAutomaterSetup
 Compression=lzma
@@ -31,6 +35,10 @@ Source: "bin\Release\net10.0-windows\win-x64\publish\*"; DestDir: "{app}"; Flags
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[Registry]
+Root: HKCU; Subkey: "Software\CertificateAutomater"; ValueType: string; ValueName: "InstallDir"; ValueData: "{app}"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\CertificateAutomater"; ValueType: string; ValueName: "ExePath"; ValueData: "{app}\{#MyAppExeName}"; Flags: uninsdeletevalue
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
