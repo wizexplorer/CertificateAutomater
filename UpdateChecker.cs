@@ -145,7 +145,7 @@ public static class UpdateChecker
         response.EnsureSuccessStatusCode();
 
         long? totalBytes = response.Content.Headers.ContentLength;
-        const int BufferSize = 81920;   // 8 KiB
+        const int BufferSize = 81920;   // 80 KiB
 
         await using Stream contentStream = await response.Content.ReadAsStreamAsync();
         await using FileStream fileStream = new FileStream(
